@@ -10,7 +10,8 @@ root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
 sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
-from masking.generate_mask import smooth_mask, dilate_mask
+from util.smooth_mask import smooth_mask
+from util.dilate_mask import dilate_mask
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from diffusers import StableDiffusionBrushNetPipeline, BrushNetModel, UniPCMultistepScheduler
 

@@ -1,4 +1,0 @@
-mediapipe>=0.10.9
-opencv-python>=4.8.0
-numpy
-Pillow
