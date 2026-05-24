@@ -12,12 +12,12 @@ from mpl_toolkits.mplot3d import Axes3D
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from util.dilate_mask import dilate_mask
 from util.smooth_mask import smooth_mask
 from util.crop_face import get_crop_info, apply_crop, restore_crop, get_actor_face_crop_info
+from util.color_transfer import color_transfer
 from diffusers import StableDiffusionControlNetInpaintPipeline, ControlNetModel, UniPCMultistepScheduler, UNet2DConditionModel, AutoencoderKL
 from transformers import CLIPTextModel
 import transformers
@@ -36,7 +36,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 #======= Golden Parameters
 STABLE_STRENGTH = 0.60
-STABLE_CN_SCALE = 0.4
+STABLE_CN_SCALE = 0.75
 STABLE_LORA_SCALE = 1.15
 
 UNIFIED_PROMPT_TEMPLATE = "a photo of {celeb} style eyebrows on a face, highly detailed, realistic skin texture, natural skin pores"
@@ -115,21 +115,7 @@ def get_canny_guide(image_np):
     img = np.concatenate([img, img, img], axis=2)
     return Image.fromarray(img)
 
-def color_transfer(src, ref, mask):
-    bg_mask = (mask == 0)
-    if not np.any(bg_mask): return src
-    src_lab = cv2.cvtColor(src, cv2.COLOR_BGR2LAB).astype(np.float32)
-    ref_lab = cv2.cvtColor(ref, cv2.COLOR_BGR2LAB).astype(np.float32)
-    for i in range(3):
-        src_channel = src_lab[:, :, i]
-        ref_channel = ref_lab[:, :, i]
-        mean_src, std_src = src_channel[bg_mask].mean(), src_channel[bg_mask].std()
-        mean_ref, std_ref = ref_channel[bg_mask].mean(), ref_channel[bg_mask].std()
-        if std_src > 1e-5:
-            src_lab[:, :, i] = (src_channel - mean_src) * (std_ref / std_src) + mean_ref
-        else:
-            src_lab[:, :, i] = src_channel - mean_src + mean_ref
-    return cv2.cvtColor(np.clip(src_lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
+
 
 
 #======= Device Setup
@@ -247,7 +233,8 @@ def run_single_image_test(pipe, image_path):
             result_bgr_512 = cv2.cvtColor(result_np_512, cv2.COLOR_RGB2BGR)
             corrected_bgr_512 = color_transfer(result_bgr_512, image_512, mask_512_binary)
             full_result_np = restore_crop(corrected_bgr_512, crop_info, original_bgr.shape)
-            mask_float = smooth_mask(raw_mask_base).astype(np.float32) / 255.0
+            ksize = int(max(original_bgr.shape[:2]) * 0.015) | 1
+            mask_float = smooth_mask(raw_mask_base, ksize=ksize).astype(np.float32) / 255.0
             mask_3d = np.repeat(mask_float[:, :, np.newaxis], 3, axis=2)
             final_result_bgr = (original_bgr.astype(np.float32) * (1 - mask_3d) + full_result_np.astype(np.float32) * mask_3d).astype(np.uint8)
             # Crop the final blended result for grid preview (keeps it close-up and highly readable)

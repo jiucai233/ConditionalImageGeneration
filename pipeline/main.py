@@ -1,5 +1,6 @@
 import os
 import sys
+import datetime
 import torch
 import cv2
 import numpy as np
@@ -13,6 +14,7 @@ sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 from util.smooth_mask import smooth_mask
 from util.dilate_mask import dilate_mask
 from util.crop_face import get_crop_info, apply_crop, restore_crop, get_actor_face_crop_info
+from util.color_transfer import color_transfer
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from diffusers import StableDiffusionControlNetInpaintPipeline, ControlNetModel, UniPCMultistepScheduler, UNet2DConditionModel, AutoencoderKL
 from transformers import CLIPTextModel, CLIPTokenizer
@@ -26,13 +28,15 @@ base_model_path = "emilianJR/epiCRealism"
 TARGET_CELEB = "고윤정"
 
 # Inputs
-image_path = os.path.join(root_path, "data/raw_face_data/seed1056395.png")
-output_path = os.path.join(root_path, "pipeline/result_face.png")
+image_path = os.path.join(root_path, "data/bro.jpg")
+input_name = os.path.splitext(os.path.basename(image_path))[0]
+timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+output_path = os.path.join(root_path, f"pipeline/outputs/result_{input_name}_{TARGET_CELEB}_{timestamp}.png")
 
 # Inpainting Hyperparameters
 STABLE_STRENGTH = 0.60
 STABLE_LORA_SCALE = 1.15
-STABLE_CN_SCALE = 0.4
+STABLE_CN_SCALE = 0.75
 controlnet_id = "lllyasviel/sd-controlnet-canny"
 
 # Prompt construction
@@ -56,21 +60,7 @@ def get_canny_guide(image_np):
     img = np.concatenate([img, img, img], axis=2)
     return Image.fromarray(img)
 
-def color_transfer(src, ref, mask):
-    bg_mask = (mask == 0)
-    if not np.any(bg_mask): return src
-    src_lab = cv2.cvtColor(src, cv2.COLOR_BGR2LAB).astype(np.float32)
-    ref_lab = cv2.cvtColor(ref, cv2.COLOR_BGR2LAB).astype(np.float32)
-    for i in range(3):
-        src_channel = src_lab[:, :, i]
-        ref_channel = ref_lab[:, :, i]
-        mean_src, std_src = src_channel[bg_mask].mean(), src_channel[bg_mask].std()
-        mean_ref, std_ref = ref_channel[bg_mask].mean(), ref_channel[bg_mask].std()
-        if std_src > 1e-5:
-            src_lab[:, :, i] = (src_channel - mean_src) * (std_ref / std_src) + mean_ref
-        else:
-            src_lab[:, :, i] = src_channel - mean_src + mean_ref
-    return cv2.cvtColor(np.clip(src_lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
+
 
 def run_pipeline():
     #======= 1. Load Models & Pipelines
@@ -142,8 +132,8 @@ def run_pipeline():
     image_pil = Image.fromarray(cv2.cvtColor(masked_image_512, cv2.COLOR_BGR2RGB))
     pipe_mask_pil = Image.new("RGB", (512, 512), "white")
     
-    # Canny edge guide from the original crop (preserves original eyebrow geometric shape)
-    control_image_pil = get_canny_guide(image_512)
+    # Canny edge guide from the masked crop (allows correct style/angle shape generation)
+    control_image_pil = get_canny_guide(masked_image_512)
 
     #======= 4. Inference
     print(f"Generating eyebrows via StableDiffusionControlNetInpaintPipeline (Strength: {STABLE_STRENGTH})...")
@@ -174,13 +164,16 @@ def run_pipeline():
     
     # Restore the local 512 patch back to original resolution
     restored_full = restore_crop(corrected_bgr_512, crop_info, original_bgr.shape)
-    restored_mask = restore_crop(mask_512_binary, crop_info, original_bgr.shape[:2])
 
-    # Soft alpha-blending using smoothed mask to prevent visible edges
-    mask_np = restored_mask.astype(np.float32) / 255.0
+    # Soft alpha-blending using the original processed mask directly to prevent alignment issues
+    mask_np = processed_mask.astype(np.float32) / 255.0
     if len(mask_np.shape) == 2:
         mask_np = mask_np[:, :, np.newaxis]
-    mask_blurred = cv2.GaussianBlur(mask_np, (15, 15), 0)
+    
+    # Dynamic kernel size based on 1.5% of max image dimension (must be odd)
+    ksize = int(max(original_bgr.shape[:2]) * 0.015) | 1
+    mask_blurred = cv2.GaussianBlur(mask_np, (ksize, ksize), 0)
+    
     if len(mask_blurred.shape) == 2:
         mask_blurred = mask_blurred[:, :, np.newaxis]
 
