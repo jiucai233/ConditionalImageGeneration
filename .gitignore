@@ -143,7 +143,6 @@ runs
 /examples/rag/sweep
 
 # data
-/data
 serialization_dir
 
 # emacs
@@ -185,9 +184,18 @@ venv/
 tests/data/*   
 examples/data/*   
 data/raw_face_data/*
-data/ckpt/*
 masking_bisenet/checkpoints/*
 masking_bisenet/face-parsing/weights/*
 
+data/actor_raw_data/*
+data/preprocessed/*
+data/ckpt/brushnetx
+
 # Ignore outputs
 pipeline/result_face.png
+pipeline/comparison_results/
+
+# Ignore intermediate checkpoints
+data/ckpt/celeb_eyebrows_*
+
+

@@ -28,7 +28,7 @@ from util.augment import augment_image_and_mask, get_random_zoom_crop_info
 # ⚙️ Professional Configuration
 # ==========================================
 BASE_MODEL_ID = "emilianJR/epiCRealism" 
-BASE_DATA_PATH = os.path.join(root_path, "data", "수정본")
+BASE_DATA_PATH = os.path.join(root_path, "data", "preprocessed")
 MODEL_SAVE_PATH = os.path.join(root_path, "data", "ckpt")
 os.makedirs(MODEL_SAVE_PATH, exist_ok=True)
 
@@ -36,6 +36,8 @@ TRAIN_TARGET = 'all' # 'all' or '신세경', '고윤정', '홍수주'
 LORA_NAME = f"{TRAIN_TARGET}_eyebrows_pro_v2" if TRAIN_TARGET != 'all' else "celeb_eyebrows_all_pro_v2"
 
 EPOCHS = 20
+MAX_TRAIN_STEPS = 30000  # Set to 30000 steps as requested for overnight training
+SAVE_STEPS = 1500  # Save a checkpoint every 1500 steps to avoid excessive disk space (approx. 20 checkpoints total)
 BATCH_SIZE = 1
 LEARNING_RATE = 1e-4
 TEXT_ENCODER_LR = 5e-5
@@ -54,7 +56,7 @@ class EyebrowDatasetPro(Dataset):
         from pathlib import Path
 
         self.base_path = base_path
-        self.celebs = ['신세경', '고윤정', '홍수주'] if target == 'all' else [target]
+        self.celebs = ['신세경', '고윤정', '홍수주','탑','최시원','뷔','차은우'] if target == 'all' else [target]
         self.size = size
         self.augment = augment
         self.data_list = []
@@ -200,8 +202,14 @@ class EyebrowDatasetPro(Dataset):
 # ==========================================
 
 def train_pro():
+    import datetime
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    print(f"🚀 Pro Training Started: {LORA_NAME} on {device}")
+    
+    # Generate run name with start timestamp and step count (no 'v' suffix)
+    start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    lora_name = f"{TRAIN_TARGET}_eyebrows_{start_time}_{MAX_TRAIN_STEPS}" if TRAIN_TARGET != 'all' else f"celeb_eyebrows_all_{start_time}_{MAX_TRAIN_STEPS}"
+    
+    print(f"🚀 Pro Training Started: {lora_name} on {device}")
 
     # 1. Models & Tokenizer
     tokenizer = CLIPTokenizer.from_pretrained(BASE_MODEL_ID, subfolder="tokenizer")
@@ -222,7 +230,11 @@ def train_pro():
     dataset = EyebrowDatasetPro(BASE_DATA_PATH, TRAIN_TARGET)
     train_dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
     num_update_steps_per_epoch = len(train_dataloader)
-    max_train_steps = EPOCHS * num_update_steps_per_epoch
+    if MAX_TRAIN_STEPS is not None:
+        max_train_steps = MAX_TRAIN_STEPS
+        EPOCHS = math.ceil(max_train_steps / num_update_steps_per_epoch)
+    else:
+        max_train_steps = EPOCHS * num_update_steps_per_epoch
 
     # 4. Optimizer & Scheduler
     optimizer = torch.optim.AdamW([
@@ -235,9 +247,17 @@ def train_pro():
     # 5. Training Loop
     unet.train()
     text_encoder.train()
+    global_step = 0
+    
     for epoch in range(EPOCHS):
-        progress_bar = tqdm(total=len(train_dataloader), desc=f"Epoch {epoch+1}/{EPOCHS}")
+        steps_in_epoch = min(len(train_dataloader), max_train_steps - global_step)
+        if steps_in_epoch <= 0:
+            break
+        progress_bar = tqdm(total=steps_in_epoch, desc=f"Epoch {epoch+1}/{EPOCHS}")
         for step, batch in enumerate(train_dataloader):
+            if global_step >= max_train_steps:
+                break
+                
             pixel_values = batch["pixel_values"].to(device)
             masks = batch["masks"].to(device)
             
@@ -277,13 +297,26 @@ def train_pro():
             lr_scheduler.step()
             optimizer.zero_grad()
 
+            global_step += 1
             progress_bar.update(1)
-            progress_bar.set_postfix({"loss": loss.item(), "lr": lr_scheduler.get_last_lr()[0]})
+            progress_bar.set_postfix({
+                "loss": loss.item(), 
+                "lr": lr_scheduler.get_last_lr()[0],
+                "step": f"{global_step}/{max_train_steps}"
+            })
+            
+            # Save checkpoint every SAVE_STEPS steps
+            if global_step > 0 and global_step % SAVE_STEPS == 0:
+                checkpoint_path = os.path.join(MODEL_SAVE_PATH, lora_name, f"checkpoint-{global_step}")
+                unet.save_pretrained(os.path.join(checkpoint_path, "unet"))
+                text_encoder.save_pretrained(os.path.join(checkpoint_path, "text_encoder"))
+                print(f"\n💾 Saved checkpoint to: {checkpoint_path}")
 
-    # 6. Save
-    unet.save_pretrained(os.path.join(MODEL_SAVE_PATH, LORA_NAME, "unet"))
-    text_encoder.save_pretrained(os.path.join(MODEL_SAVE_PATH, LORA_NAME, "text_encoder"))
-    print(f"✅ Pro LoRA Saved: {LORA_NAME}")
+    # 6. Save final model
+    final_save_path = os.path.join(MODEL_SAVE_PATH, lora_name)
+    unet.save_pretrained(os.path.join(final_save_path, "unet"))
+    text_encoder.save_pretrained(os.path.join(final_save_path, "text_encoder"))
+    print(f"✅ Pro LoRA Saved: {lora_name} at {final_save_path}")
 
 if __name__ == "__main__":
     train_pro()

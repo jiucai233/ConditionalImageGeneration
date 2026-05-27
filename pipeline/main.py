@@ -131,7 +131,7 @@ def color_transfer(src, ref, mask):
 
 def load_models():
     base_model_path = "emilianJR/epiCRealism" 
-    v4_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_all_pro_v4")
+    v4_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_female_integrated")
     
     if torch.cuda.is_available():
         device = "cuda"
@@ -289,7 +289,7 @@ if __name__ == "__main__":
         "raw_face_data/seed1000166.png",
         "raw_face_data/seed1000187.png"
     ]
-    celebs = ["고윤정", "신세경", "홍수주"]
+    celebs = ["고윤정", "신세경", "홍수주", "탑", "최시원", "뷔", "차은우"]
     
     print("Starting batch inference for main pipeline...")
     pipe, lama, device = load_models()

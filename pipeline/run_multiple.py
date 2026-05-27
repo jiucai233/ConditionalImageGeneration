@@ -47,7 +47,11 @@ STABLE_CN_SCALE = 0.75
 comparison_cases = [
     { "celeb": "고윤정", "display_name": "Go Youn Jung" },
     { "celeb": "신세경", "display_name": "Shin Se Kyung" },
-    { "celeb": "홍수주", "display_name": "Hong Su Zu" }
+    { "celeb": "홍수주", "display_name": "Hong Su Zu" },
+    { "celeb": "탑", "display_name": "T.O.P" },
+    { "celeb": "최시원", "display_name": "Choi Si Won" },
+    { "celeb": "뷔", "display_name": "V" },
+    { "celeb": "차은우", "display_name": "Cha Eun Woo" }
 ]
 
 prompt_template = "a photo of {celeb} style eyebrows on a face, highly detailed, realistic skin texture, natural skin pores"
@@ -88,7 +92,7 @@ def main():
     pipe.to(device)
 
     # 2. Check and Load Unified/Individual LoRA
-    unified_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_all_pro_v4")
+    unified_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_female_integrated")
     unified_lora_v2_path = os.path.join(root_path, "data/ckpt/celeb_eyebrows_all_pro_v2")
     
     # We will load LoRA using V4 unified as default
