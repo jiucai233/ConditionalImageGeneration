@@ -27,7 +27,7 @@ if not hasattr(transformers, 'CLIPFeatureExtractor'):
 #======= Configuration
 base_model_path = "emilianJR/epiCRealism" 
 controlnet_id = "lllyasviel/sd-controlnet-canny"
-unified_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_all_pro_v4")
+unified_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_female_integrated")
 
 #======= Paths and Setup
 input_images_dir = os.path.join(root_path, "data/raw_face_data")

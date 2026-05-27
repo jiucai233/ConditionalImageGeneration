@@ -15,7 +15,7 @@ from peft import PeftModel
 
 # Configuration
 base_model_path = "emilianJR/epiCRealism" 
-lora_text_encoder_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_all_pro_v4/text_encoder")
+lora_text_encoder_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_female_integrated/text_encoder")
 output_dir = os.path.join(root_path, "tests/data/eyebrow_visualize")
 os.makedirs(output_dir, exist_ok=True)
 

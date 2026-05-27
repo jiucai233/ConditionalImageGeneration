@@ -77,7 +77,7 @@ ConditionalImageGeneration/
 │   ├── actor.jpeg            # 테스트 이미지
 │   └── raw_face_data/        # AI 생성 얼굴 이미지 데이터셋
 ├── lora_checkpoint/
-│   └── celeb_eyebrows_all_pro_v4/  # 학습된 LoRA 가중치
+│   └── celeb_eyebrows_female_integrated/  # 학습된 LoRA 가중치
 │       ├── unet/
 │       └── text_encoder/
 ├── tests/
@@ -137,7 +137,7 @@ ConditionalImageGeneration/
 |---|---|
 | **입력 이미지** | 임의 해상도의 RGB 얼굴 이미지 (JPG/PNG) |
 | **타겟 스타일** | 셀럽 이름 문자열 (`"고윤정"`, `"신세경"`, `"홍수주"`) |
-| **LoRA 가중치** | `lora_checkpoint/celeb_eyebrows_all_pro_v4/` |
+| **LoRA 가중치** | `lora_checkpoint/celeb_eyebrows_female_integrated/` |
 | **BiSeNet 가중치** | `masking_bisenet/face-parsing/weights/resnet34.onnx` |
 | **MediaPipe 모델** | `data/face_landmarker.task` (첫 실행 시 자동 다운로드) |
 
@@ -186,13 +186,13 @@ cd ../..
 * 코드를 실행할 때 Hugging Face Diffusers를 통해 캐시 디렉토리로 자동 다운로드되므로 수동 다운로드가 필요하지 않습니다.
 
 ### 3. LoRA 가중치
-* 훈련된 LoRA 가중치: `lora_checkpoint/celeb_eyebrows_all_pro_v4/`
+* 훈련된 LoRA 가중치: `lora_checkpoint/celeb_eyebrows_female_integrated/`
   - `unet/`: UNet LoRA 어댑터
   - `text_encoder/`: Text Encoder LoRA 어댑터
 
 ### 4. 학습 및 테스트 데이터 구조
 * **배우 원본 이미지**: `data/actor_raw_data/{배우이름}/001.jpg` ...
-* **학습용 눈썹 마스크 및 누끼**: `data/수정본/{배우이름}_mask/`
+* **학습용 눈썹 마스크 및 누끼**: `data/preprocessed/{배우이름}_mask/`
   - `extracted/`: 흰색 배경의 눈썹 이미지 (`_tight_white_bg.png`)
   - `tight/`: 타이트한 흑백 마스크 이미지 (`_tight_mask.png`)
   - `padded_2px/`: 2px 팽창된 마스크 이미지 (피부 경계면 자연스러운 블렌딩 학습용)

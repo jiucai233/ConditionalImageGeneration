@@ -106,7 +106,7 @@ def make_brow_mask_from_landmarks(image_np, padding_ratio=0.5):
 
 #======= Configuration
 base_model_path = "emilianJR/epiCRealism" 
-v4_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_all_pro_v4")
+v4_lora_path = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_female_integrated")
 input_images_dir = os.path.join(root_path, "data/raw_face_data")
 output_dir = os.path.join(root_path, "tests/data/eyebrow_tests/raw_generation_experiment")
 

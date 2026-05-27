@@ -8,7 +8,7 @@ from safetensors.torch import load_file
 
 # Setup paths
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-unet_safetensors = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_all_pro_v4/unet/adapter_model.safetensors")
+unet_safetensors = os.path.join(root_path, "lora_checkpoint/celeb_eyebrows_female_integrated/unet/adapter_model.safetensors")
 output_dir = os.path.join(root_path, "tests/data/eyebrow_visualize")
 os.makedirs(output_dir, exist_ok=True)
 
