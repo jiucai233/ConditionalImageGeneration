@@ -181,7 +181,9 @@ wandb
 venv/
 
 # Ignore Weights and Data
-tests/data/*   
+tests/data/*
+!tests/data/eyebrow_visualize/
+!tests/data/eyebrow_tests/
 examples/data/*   
 data/raw_face_data/*
 masking_bisenet/checkpoints/*
