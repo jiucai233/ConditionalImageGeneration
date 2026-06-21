@@ -14,7 +14,6 @@ from sklearn.metrics import silhouette_score
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from util.dilate_mask import dilate_mask
@@ -169,7 +168,11 @@ def load_pipeline():
     # Load 30000 steps integrated LoRA weights
     pipe.unet = PeftModel.from_pretrained(pipe.unet, os.path.join(integrated_lora_path, "unet"), adapter_name="unified")
     pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, os.path.join(integrated_lora_path, "text_encoder"), adapter_name="unified")
-    pipe.set_adapters(["unified"], adapter_weights=[1.15])
+    # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+    for model in [pipe.unet, pipe.text_encoder]:
+        for module in model.modules():
+            if hasattr(module, "scaling") and "unified" in module.scaling:
+                module.scaling["unified"] = 1.15
     
     pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
     pipe.to(device)

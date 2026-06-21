@@ -8,7 +8,6 @@ from PIL import Image
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from util.dilate_mask import dilate_mask
@@ -201,7 +200,11 @@ def main():
     print(f"Starting Raw Generation Experiment on {len(test_img_paths)} test images.")
     
     pipe = load_pipeline()
-    pipe.set_adapters(["unified_v4"], adapter_weights=[lora_scale])
+    # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+    for model in [pipe.unet, pipe.text_encoder]:
+        for module in model.modules():
+            if hasattr(module, "scaling") and "unified_v4" in module.scaling:
+                module.scaling["unified_v4"] = lora_scale
     
     # Initialize LaMa model
     print("Loading LaMa inpainting model...")

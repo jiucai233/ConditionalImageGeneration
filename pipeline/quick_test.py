@@ -8,7 +8,6 @@ from PIL import Image
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from util.dilate_mask import dilate_mask
@@ -159,7 +158,11 @@ def main():
     print(f"Loading LoRA weights from {step_dir}...")
     pipe.unet = PeftModel.from_pretrained(pipe.unet, os.path.join(step_dir, "unet"), adapter_name="step_30000")
     pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, os.path.join(step_dir, "text_encoder"), adapter_name="step_30000")
-    pipe.set_adapters(["step_30000"], adapter_weights=[1.15])
+    # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+    for model in [pipe.unet, pipe.text_encoder]:
+        for module in model.modules():
+            if hasattr(module, "scaling") and "step_30000" in module.scaling:
+                module.scaling["step_30000"] = 1.15
     
     pipe.to(device)
     pipe.enable_attention_slicing()

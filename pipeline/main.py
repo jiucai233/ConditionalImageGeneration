@@ -9,7 +9,6 @@ from PIL import Image
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from util.dilate_mask import dilate_mask
@@ -156,7 +155,11 @@ def load_models():
     
     pipe.unet = PeftModel.from_pretrained(pipe.unet, os.path.join(v4_lora_path, "unet"), adapter_name="unified_v4")
     pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, os.path.join(v4_lora_path, "text_encoder"), adapter_name="unified_v4")
-    pipe.set_adapters(["unified_v4"], adapter_weights=[1.15])
+    # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+    for model in [pipe.unet, pipe.text_encoder]:
+        for module in model.modules():
+            if hasattr(module, "scaling") and "unified_v4" in module.scaling:
+                module.scaling["unified_v4"] = 1.15
     print(f"✅ Loaded LoRA V4 checkpoint.")
     
     pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)

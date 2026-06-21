@@ -202,7 +202,11 @@ def run_single_image_test(pipe, image_path):
             pipe.unet.set_adapter(all_adapter_name)
             if hasattr(pipe, "text_encoder") and hasattr(pipe.text_encoder, "peft_config") and all_adapter_name in pipe.text_encoder.peft_config:
                 pipe.text_encoder.set_adapter(all_adapter_name)
-            pipe.set_adapters([all_adapter_name], adapter_weights=[STABLE_LORA_SCALE])
+            # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+            for model in [pipe.unet, pipe.text_encoder]:
+                for module in model.modules():
+                    if hasattr(module, "scaling") and all_adapter_name in module.scaling:
+                        module.scaling[all_adapter_name] = STABLE_LORA_SCALE
         else:
             if hasattr(pipe, "disable_lora"):
                 pipe.disable_lora()

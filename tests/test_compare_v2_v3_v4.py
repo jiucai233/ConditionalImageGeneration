@@ -143,7 +143,11 @@ def load_pipeline_for_version(version):
     from peft import PeftModel
     pipe.unet = PeftModel.from_pretrained(pipe.unet, os.path.join(lora_path, "unet"), adapter_name="default")
     pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, os.path.join(lora_path, "text_encoder"), adapter_name="default")
-    pipe.set_adapters(["default"], adapter_weights=[STABLE_LORA_SCALE])
+    # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+    for model in [pipe.unet, pipe.text_encoder]:
+        for module in model.modules():
+            if hasattr(module, "scaling") and "default" in module.scaling:
+                module.scaling["default"] = STABLE_LORA_SCALE
     print(f"✅ Successfully loaded LoRA {version.upper()} from: {lora_path} with scale {STABLE_LORA_SCALE}")
     
     pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)

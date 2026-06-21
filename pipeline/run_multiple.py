@@ -8,7 +8,6 @@ from PIL import Image
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from util.smooth_mask import smooth_mask
 from util.dilate_mask import dilate_mask
@@ -107,7 +106,11 @@ def main():
     if selected_lora_path is not None:
         pipe.unet = PeftModel.from_pretrained(pipe.unet, os.path.join(selected_lora_path, "unet"), adapter_name="celebs")
         pipe.text_encoder = PeftModel.from_pretrained(pipe.text_encoder, os.path.join(selected_lora_path, "text_encoder"), adapter_name="celebs")
-        pipe.set_adapters(["celebs"], adapter_weights=[STABLE_LORA_SCALE])
+        # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+        for model in [pipe.unet, pipe.text_encoder]:
+            for module in model.modules():
+                if hasattr(module, "scaling") and "celebs" in module.scaling:
+                    module.scaling["celebs"] = STABLE_LORA_SCALE
         print(f"✅ Loaded LoRA Adapter with scale {STABLE_LORA_SCALE}")
     else:
         print("⚠️ Warning: No unified LoRA checkpoint found. Proceeding without LoRA.")

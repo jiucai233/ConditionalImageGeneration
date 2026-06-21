@@ -10,7 +10,6 @@ from tqdm.auto import tqdm
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from util.dilate_mask import dilate_mask
@@ -269,7 +268,13 @@ def main():
         else:
             pipe.text_encoder.load_adapter(os.path.join(step_dir, "text_encoder"), adapter_name=f"step_{step}")
             
-        pipe.set_adapters([f"step_{step}"], adapter_weights=[1.15])
+        pipe.unet.set_adapter(f"step_{step}")
+        pipe.text_encoder.set_adapter(f"step_{step}")
+        # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+        for model in [pipe.unet, pipe.text_encoder]:
+            for module in model.modules():
+                if hasattr(module, "scaling") and f"step_{step}" in module.scaling:
+                    module.scaling[f"step_{step}"] = 1.15
         
         # Run inference for all test images and celebs
         for img_name, data in preprocessed_images.items():

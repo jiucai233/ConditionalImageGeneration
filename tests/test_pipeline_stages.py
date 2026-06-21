@@ -8,7 +8,6 @@ from PIL import Image, ImageDraw, ImageFont
 # Ensure we can import local modules
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, root_path)
-sys.path.insert(0, os.path.join(root_path, "brushnet/src"))
 
 from masking_bisenet.generate_mask_bisenet import generate_bisenet_face_parts_mask
 from util.dilate_mask import dilate_mask
@@ -254,7 +253,11 @@ def process_image(image_path, pipe, lama, lora_scale=1.15, strength=0.60):
     stage2_crop_input = cv2.cvtColor(masked_image_512, cv2.COLOR_BGR2RGB)
 
     # --- Stage 4: Stable Diffusion inpaint ---
-    pipe.set_adapters(["unified_v4"], adapter_weights=[lora_scale])
+    # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+    for model in [pipe.unet, pipe.text_encoder]:
+        for module in model.modules():
+            if hasattr(module, "scaling") and "unified_v4" in module.scaling:
+                module.scaling["unified_v4"] = lora_scale
     prompt = UNIFIED_PROMPT_TEMPLATE.format(celeb=TARGET_CELEB)
     pipe_mask_pil = Image.new("RGB", (512, 512), "white")
     control_image_pil = get_canny_guide(image_512)

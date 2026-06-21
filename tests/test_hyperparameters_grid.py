@@ -203,7 +203,11 @@ def main():
             os.makedirs(config_out_dir, exist_ok=True)
             
             # Set the adapter scale
-            pipe.set_adapters(["unified_v4"], adapter_weights=[lora_scale])
+            # Set scale manually on PEFT modules to bypass pipeline set_adapters compatibility check
+            for model in [pipe.unet, pipe.text_encoder]:
+                for module in model.modules():
+                    if hasattr(module, "scaling") and "unified_v4" in module.scaling:
+                        module.scaling["unified_v4"] = lora_scale
             
             config_vectors = []
             config_labels = []
